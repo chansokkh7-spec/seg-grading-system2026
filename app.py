@@ -40,11 +40,15 @@ columns = [
 if 'db' not in st.session_state:
     st.session_state.db = pd.DataFrame(columns=columns)
 
-# បន្ថែម State សម្រាប់សម្អាត Form (Reset Logic)
+# ចងចាំ Level ដែលបានជ្រើសរើស (Sticky Level)
+if 'selected_level' not in st.session_state:
+    st.session_state.selected_level = "Level 1"
+
+# State សម្រាប់សម្អាតពិន្ទុ (Reset Score Only)
 if 'form_key' not in st.session_state:
     st.session_state.form_key = 0
 
-def reset_form():
+def reset_scores():
     st.session_state.form_key += 1
 
 # --- ៥. SIDEBAR: ការគ្រប់គ្រងទិន្នន័យ ---
@@ -73,23 +77,29 @@ if uploaded_file:
                         st.session_state.db = pd.concat([st.session_state.db, new_row], ignore_index=True)
                 st.sidebar.success(f"បានបញ្ចូលសិស្ស {len(names_to_add)} នាក់!")
                 st.rerun()
-        else:
-            st.sidebar.error("រកមិនឃើញក្បាលតារាង 'Student Name' ទេ។")
     except Exception as e:
         st.sidebar.error(f"Error: {e}")
 
 st.sidebar.divider()
 
-# ផ្នែកបញ្ចូលពិន្ទុ (Edit Score) ជាមួយមុខងារ Reset ទៅលេខ 0
+# ផ្នែកបញ្ចូលពិន្ទុ (Edit Score)
 st.sidebar.subheader("✍️ Step 2: Edit Score")
 levels_list = ["K1", "K2", "K3", "K4", "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8", "Level 9", "Level 10", "Level 11", "Level 12"]
 
 if not st.session_state.db.empty:
-    # ប្រើ form_key ដើម្បី Reset input ទាំងអស់ទៅតម្លៃដើម (0)
-    with st.sidebar.form(key=f"edit_form_{st.session_state.form_key}"):
+    # កន្លែងកំណត់ឱ្យ Level នៅជាប់ (Sticky Level)
+    current_level = st.sidebar.selectbox(
+        "📚 Select Level (នឹងនៅជាប់រហូត)", 
+        levels_list, 
+        index=levels_list.index(st.session_state.selected_level)
+    )
+    st.session_state.selected_level = current_level
+
+    # Form សម្រាប់ពិន្ទុ (នឹង Reset ទៅ 0 តែពិន្ទុទេ)
+    with st.sidebar.form(key=f"score_form_{st.session_state.form_key}"):
         selected_student = st.selectbox("ជ្រើសរើសសិស្ស", st.session_state.db['Student Name'].tolist())
-        level = st.selectbox("📚 Select Level", levels_list)
         
+        st.write("---")
         c1, c2 = st.columns(2)
         with c1:
             gram = st.number_input("Grammar", 0, 100, value=0)
@@ -109,45 +119,30 @@ if not st.session_state.db.empty:
             grade = calculate_grade(avg)
             
             idx = st.session_state.db[st.session_state.db['Student Name'] == selected_student].index
-            st.session_state.db.loc[idx, ['Level', 'Grammar', 'Vocabulary', 'Speaking', 'Reading', 'Listening', 'Daily Homework', 'Monthly Score', 'Mid-term', 'Final', 'Average (%)', 'Result Grade']] = [level, gram, vocab, speak, read, listn, hw, monthly, midterm, final, round(avg, 2), grade]
+            st.session_state.db.loc[idx, ['Level', 'Grammar', 'Vocabulary', 'Speaking', 'Reading', 'Listening', 'Daily Homework', 'Monthly Score', 'Mid-term', 'Final', 'Average (%)', 'Result Grade']] = [st.session_state.selected_level, gram, vocab, speak, read, listn, hw, monthly, midterm, final, round(avg, 2), grade]
             
-            st.sidebar.success(f"បានរក្សាទុកពិន្ទុ {selected_student}")
-            reset_form() # កែសម្រួលឱ្យ Form ត្រឡប់ទៅទទេរវិញ
+            st.sidebar.success(f"Saved: {selected_student}")
+            reset_scores() # លុបតែពិន្ទុចេញដើម្បីវាយសិស្សថ្មី
             st.rerun()
 else:
     st.sidebar.info("សូម Upload Excel ដើម្បីចាប់ផ្តើម")
 
-# --- ៦. MAIN PAGE: បង្ហាញលទ្ធផល ---
+# --- ៦. MAIN PAGE ---
 st.title("🏫 SEG Student Management Dashboard")
 
-m1, m2, m3 = st.columns(3)
-with m1:
-    st.metric("Total Students", len(st.session_state.db))
-with m2:
-    avg_total = st.session_state.db['Average (%)'].mean() if not st.session_state.db.empty else 0
-    st.metric("Class Average", f"{avg_total:.1f}%")
-with m3:
-    if not st.session_state.db.empty:
-        pass_rate = (len(st.session_state.db[st.session_state.db['Result Grade'] != 'F']) / len(st.session_state.db)) * 100
-        st.metric("Pass Rate", f"{pass_rate:.1f}%")
-    else:
-        st.metric("Pass Rate", "0%")
-
-st.divider()
-
-# តារាងពិន្ទុ
-st.subheader("📊 Class Results Sheet")
-def color_grade(val):
-    color = 'red' if val == 'F' else '#2e7d32' if 'A' in str(val) else '#ef6c00' if 'C' in str(val) else '#1565c0'
-    return f'color: {color}; font-weight: bold'
-
 if not st.session_state.db.empty:
+    st.subheader("📊 Class Results Sheet")
+    def color_grade(val):
+        color = 'red' if val == 'F' else '#2e7d32' if 'A' in str(val) else '#ef6c00' if 'C' in str(val) else '#1565c0'
+        return f'color: {color}; font-weight: bold'
+
     styled_df = st.session_state.db.style.map(color_grade, subset=['Result Grade'])
     st.dataframe(styled_df, use_container_width=True)
-else:
-    st.info("💡 គន្លឹះ៖ Upload Excel រួចវាយបញ្ចូលពិន្ទុតាម Sidebar")
 
-# ប៊ូតុងទាញយក
-if not st.session_state.db.empty:
+    # ប៊ូតុងទាញយក
     csv = st.session_state.db.to_csv(index=False).encode('utf-8-sig')
     st.download_button("📥 Download Report (Excel)", csv, "seg_report.csv", "text/csv")
+    
+    if st.button("🗑️ Clear All Data"):
+        st.session_state.db = pd.DataFrame(columns=columns)
+        st.rerun()
