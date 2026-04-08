@@ -108,20 +108,26 @@ with m3:
     else:
         st.metric("Pass Rate", "0%")
 with m4:
-    best = st.session_state.db.loc[st.session_state.db['Average (%)'].idxmax()]['Result Grade'] if not st.session_state.db.empty else "N/A"
-    st.metric("Top Grade", best)
+    if not st.session_state.db.empty:
+        best = st.session_state.db.loc[st.session_state.db['Average (%)'].idxmax()]['Result Grade']
+        st.metric("Top Grade", best)
+    else:
+        st.metric("Top Grade", "N/A")
 
 st.divider()
 
 # តារាងពិន្ទុ
 st.subheader("📊 Class Results Sheet")
-# ប្រើស្ទីលដើម្បីប្តូរពណ៌តាម Grade
+
+# មុខងារប្តូរពណ៌អក្សរតាម Grade (ប្រើពាក្យ map ជំនួស applymap)
 def color_grade(val):
-    color = 'red' if val == 'F' else 'green' if 'A' in str(val) else 'orange' if 'C' in str(val) else 'black'
+    color = 'red' if val == 'F' else '#2e7d32' if 'A' in str(val) else '#ef6c00' if 'C' in str(val) else '#1565c0'
     return f'color: {color}; font-weight: bold'
 
 if not st.session_state.db.empty:
-    st.dataframe(st.session_state.db.style.applymap(color_grade, subset=['Result Grade']), use_container_width=True)
+    # --- កន្លែងដែលបានកែ Error គឺត្រង់នេះ ---
+    styled_df = st.session_state.db.style.map(color_grade, subset=['Result Grade'])
+    st.dataframe(styled_df, use_container_width=True)
 else:
     st.info("No data yet. Use the sidebar to add students.")
 
