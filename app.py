@@ -9,10 +9,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# ២. កន្លែងកំណត់ Logo SEG (អ្នកគ្រូអាចយក Link មកដាក់ជំនួស ឬប្រើ File ក្នុងម៉ាស៊ីន)
-LOGO_URL = "https://img.icons8.com/fluency/150/school.png" 
+# ២. កំណត់យក Logo ពី File ដែលអ្នកគ្រូបាន Upload ទៅ GitHub
+# ដោយសារអ្នកគ្រូដាក់ឈ្មោះថា logo.png ក្នុង GitHub ដូច្នេះយើងត្រូវដាក់ឈ្មោះឱ្យដូចគ្នា
+LOGO_FILE = "logo.png" 
 
-# ៣. CSS សម្រាប់ដេគ័រកម្មវិធីឱ្យស្អាត
+# ៣. CSS សម្រាប់ដេគ័រកម្មវិធី
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -56,12 +57,17 @@ if 'form_key' not in st.session_state: st.session_state.form_key = 0
 if 'selected_level' not in st.session_state: st.session_state.selected_level = "Level 1"
 
 # --- ៦. SIDEBAR ---
-st.sidebar.image(LOGO_URL, width=120)
+# បង្ហាញ Logo នៅ Sidebar
+try:
+    st.sidebar.image(LOGO_FILE, width=150)
+except:
+    st.sidebar.title("🏫 SEG SCHOOL")
+
 st.sidebar.title("SEG Data Manager")
 st.sidebar.divider()
 
-# Upload
-uploaded_file = st.sidebar.file_uploader("Upload Excel/CSV ឈ្មោះសិស្ស", type=['xlsx', 'csv'])
+# Upload ឈ្មោះសិស្ស
+uploaded_file = st.sidebar.file_uploader("Upload Excel/CSV", type=['xlsx', 'csv'])
 if uploaded_file:
     try:
         df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('.xlsx') else pd.read_csv(uploaded_file)
@@ -104,24 +110,19 @@ if not st.session_state.db.empty:
 # --- ៧. MAIN PAGE ---
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
-    st.image(LOGO_URL, width=100)
+    try:
+        st.image(LOGO_FILE, width=100)
+    except:
+        st.write("🏫")
+
 with col_title:
     st.title("SEG Student Management Dashboard")
     st.write("Academic Year: 2026 | Branch: **Prek Leap**")
 
 if not st.session_state.db.empty:
-    # Analysis
     st.divider()
-    active_db = st.session_state.db[st.session_state.db['Average (%)'] > 0]
-    if not active_db.empty:
-        st.subheader("📊 Class Performance")
-        grade_counts = active_db['Result Grade'].value_counts().reset_index()
-        grade_counts.columns = ['Grade', 'Count']
-        fig = px.pie(grade_counts, values='Count', names='Grade', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
-        st.plotly_chart(fig, use_container_width=True)
-
+    
     # Filter & Sort
-    st.subheader("🔍 Filter & Leaderboard")
     f1, f2 = st.columns(2)
     with f1:
         sel_grade = st.selectbox("Filter Grade", ["All Grades"] + sorted(st.session_state.db['Result Grade'].unique().tolist()))
@@ -142,9 +143,6 @@ if not st.session_state.db.empty:
     # Export
     csv = disp.to_csv(index=False).encode('utf-8-sig')
     st.download_button("📥 Download Report (CSV)", csv, "seg_report.csv", "text/csv")
-    if st.button("🗑️ Clear All Data"):
-        st.session_state.db = pd.DataFrame(columns=st.session_state.db.columns)
-        st.rerun()
 else:
     st.info("💡 សូមបញ្ចូលឈ្មោះសិស្សពី Excel ដើម្បីចាប់ផ្តើម។")
 
