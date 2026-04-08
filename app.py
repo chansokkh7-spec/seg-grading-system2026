@@ -2,16 +2,19 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ១. ការកំណត់ទម្រង់ទំព័រ (Page Configuration)
+# ១. ការកំណត់ទម្រង់ទំព័រ
 st.set_page_config(page_title="SEG Grading System", page_icon="🏫", layout="wide")
 
-# ២. បន្ថែមស្ទាយ Custom CSS ឱ្យមើលទៅមានវិជ្ជាជីវៈ
+# 🔗 កន្លែងដូរ Logo (អ្នកគ្រូអាចយក Link រូបភាពសាលាមកដាក់ត្រង់នេះ)
+LOGO_URL = "https://img.icons8.com/fluency/150/school.png" 
+
+# ២. បន្ថែមស្ទាយ Custom CSS
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
     .stButton>button { width: 100%; border-radius: 8px; height: 3em; background-color: #003057; color: white; font-weight: bold; }
     .stMetric { background-color: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #003057; }
-    footer {visibility: hidden;}
+    .footer-text { text-align: center; color: #555; padding: 20px; font-size: 0.9em; border-top: 1px solid #ddd; margin-top: 50px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -31,7 +34,7 @@ def calculate_grade(score):
     elif score >= 60: return "D-"
     else: return "F"
 
-# ៤. បង្កើត Header និង Session State (Database)
+# ៤. Session State Setup
 columns = [
     'Student Name', 'Level', 'Grammar', 'Vocabulary', 'Speaking', 
     'Reading', 'Listening', 'Daily Homework', 'Monthly Score', 
@@ -50,69 +53,48 @@ if 'form_key' not in st.session_state:
 def reset_scores():
     st.session_state.form_key += 1
 
-# --- ៥. SIDEBAR: ការបញ្ចូលទិន្នន័យ ---
-st.sidebar.image("https://img.icons8.com/fluency/96/school.png", width=80)
+# --- ៥. SIDEBAR: បញ្ចូលទិន្នន័យ និង LOGO ---
+st.sidebar.image(LOGO_URL, width=120)
 st.sidebar.title("SEG Data Manager")
+st.sidebar.divider()
 
-# ផ្នែក Upload Excel
-st.sidebar.subheader("📂 Step 1: Bulk Upload")
+# Upload Section
 uploaded_file = st.sidebar.file_uploader("Upload Excel/CSV ឈ្មោះសិស្ស", type=['xlsx', 'csv'])
 
 if uploaded_file:
     try:
-        if uploaded_file.name.endswith('.csv'):
-            df_upload = pd.read_csv(uploaded_file)
-        else:
-            df_upload = pd.read_excel(uploaded_file, engine='openpyxl')
-        
+        df_upload = pd.read_excel(uploaded_file, engine='openpyxl') if uploaded_file.name.endswith('.xlsx') else pd.read_csv(uploaded_file)
         df_upload.columns = [str(x).strip().title() for x in df_upload.columns]
-        
         if "Student Name" in df_upload.columns:
             if st.sidebar.button("បញ្ចូលឈ្មោះសិស្សទាំងអស់"):
-                names_to_add = df_upload["Student Name"].dropna().unique()
-                for name in names_to_add:
+                for name in df_upload["Student Name"].dropna().unique():
                     if name not in st.session_state.db['Student Name'].values:
                         new_row = pd.DataFrame([[name, "N/A", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "F"]], columns=columns)
                         st.session_state.db = pd.concat([st.session_state.db, new_row], ignore_index=True)
-                st.sidebar.success(f"បានបញ្ចូលសិស្ស {len(names_to_add)} នាក់!")
                 st.rerun()
-        else:
-            st.sidebar.error("រកមិនឃើញក្បាលតារាង 'Student Name' ទេ។")
-    except Exception as e:
-        st.sidebar.error(f"Error: {e}")
+    except Exception as e: st.sidebar.error(f"Error: {e}")
 
-st.sidebar.divider()
-
-# ផ្នែកបញ្ចូលពិន្ទុ (Edit Score)
-st.sidebar.subheader("✍️ Step 2: Edit Score")
-levels_list = ["K1", "K2", "K3", "K4", "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8", "Level 9", "Level 10", "Level 11", "Level 12"]
+# Score Entry Section
+st.sidebar.subheader("✍️ Edit Score")
+levels_list = [f"Level {i}" for i in range(1, 13)] + ["K1", "K2", "K3", "K4"]
 
 if not st.session_state.db.empty:
-    # Sticky Level
-    current_level = st.sidebar.selectbox("📚 Select Level", levels_list, index=levels_list.index(st.session_state.selected_level))
+    current_level = st.sidebar.selectbox("📚 Select Level", sorted(levels_list), index=0)
     st.session_state.selected_level = current_level
 
-    # បង្ហាញសញ្ញា 🔴 (មិនទាន់វាយ) និង ✅ (វាយរួច) ក្នុងបញ្ជីឈ្មោះ
     display_to_real = {f"{'✅ ' if r['Average (%)'] > 0 else '🔴 '}{r['Student Name']}": r['Student Name'] for _, r in st.session_state.db.iterrows()}
     
     with st.sidebar.form(key=f"score_form_{st.session_state.form_key}"):
         selected_display = st.selectbox("🎯 ជ្រើសរើសសិស្ស", list(display_to_real.keys()))
         selected_name = display_to_real[selected_display]
         
-        st.write("---")
         c1, c2 = st.columns(2)
         with c1:
-            gram = st.number_input("Grammar", 0, 100, value=0)
-            read = st.number_input("Reading", 0, 100, value=0)
-            listn = st.number_input("Listening", 0, 100, value=0)
-            hw = st.number_input("Homework", 0, 100, value=0)
+            gram, read, listn, hw = [st.number_input(l, 0, 100, 0) for l in ["Grammar", "Reading", "Listening", "Homework"]]
         with c2:
-            vocab = st.number_input("Vocabulary", 0, 100, value=0)
-            speak = st.number_input("Speaking", 0, 100, value=0)
-            monthly = st.number_input("Monthly", 0, 100, value=0)
+            vocab, speak, monthly = [st.number_input(l, 0, 100, 0) for l in ["Vocabulary", "Speaking", "Monthly"]]
         
-        midterm = st.number_input("Mid-term Exam", 0, 100, value=0)
-        final = st.number_input("Final Exam", 0, 100, value=0)
+        midterm, final = [st.number_input(l, 0, 100, 0) for l in ["Mid-term Exam", "Final Exam"]]
         
         if st.form_submit_button("Update & Save"):
             avg = (gram + vocab + speak + read + listn + hw + monthly + midterm + final) / 9
@@ -123,29 +105,33 @@ if not st.session_state.db.empty:
             st.rerun()
 
 # --- ៦. MAIN PAGE: DASHBOARD ---
-st.title("🏫 SEG Student Management Dashboard")
+col_logo, col_title = st.columns([1, 5])
+with col_logo:
+    st.image(LOGO_URL, width=100)
+with col_title:
+    st.title("SEG Student Management Dashboard")
+    st.write(f"Academic Year: 2026 | Branch: **Prek Leap**")
 
 if not st.session_state.db.empty:
-    # --- ផ្នែកវិភាគ (Pie Chart) ---
-    st.subheader("📊 Grade Distribution")
+    # Analysis Charts
+    st.divider()
     active_db = st.session_state.db[st.session_state.db['Average (%)'] > 0]
     if not active_db.empty:
+        st.subheader("📊 Grade Analysis")
         grade_counts = active_db['Result Grade'].value_counts().reset_index()
         grade_counts.columns = ['Grade', 'Count']
-        fig = px.pie(grade_counts, values='Count', names='Grade', hole=0.4,
-                     color_discrete_sequence=px.colors.qualitative.Safe)
+        fig = px.pie(grade_counts, values='Count', names='Grade', hole=0.4, title="Class Performance Overview")
         st.plotly_chart(fig, use_container_width=True)
 
-    # --- ផ្នែក FILTER ---
+    # Filter & Table
     st.subheader("🔍 Filter & Leaderboard")
     f1, f2 = st.columns(2)
     with f1:
         all_grades = ["All Grades"] + sorted(st.session_state.db['Result Grade'].unique().tolist())
-        selected_grade = st.selectbox("Filter by Grade", all_grades)
+        selected_grade = st.selectbox("Grade Filter", all_grades)
     with f2:
-        sort_order = st.radio("Sort Score:", ["High to Low", "Low to High"], horizontal=True)
+        sort_order = st.radio("Sorting:", ["High to Low", "Low to High"], horizontal=True)
 
-    # Filter និង Sort ទិន្នន័យ
     display_df = st.session_state.db.copy()
     if selected_grade != "All Grades":
         display_df = display_df[display_df['Result Grade'] == selected_grade]
@@ -153,32 +139,26 @@ if not st.session_state.db.empty:
     ascending = (sort_order == "Low to High")
     display_df = display_df.sort_values(by='Average (%)', ascending=ascending)
 
-    # បង្ហាញតារាង
     def color_grade(val):
         color = 'red' if val == 'F' else '#2e7d32' if 'A' in str(val) else '#ef6c00' if 'C' in str(val) else '#1565c0'
         return f'color: {color}; font-weight: bold'
 
-    st.write(f"Showing **{len(display_df)}** students")
     st.dataframe(display_df.style.map(color_grade, subset=['Result Grade']), use_container_width=True)
 
-    # ប៊ូតុង Download និង Clear
-    st.divider()
-    c_dl, c_cl = st.columns([4, 1])
-    with c_dl:
-        csv = display_df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button("📥 Download Excel Report", csv, "seg_report.csv", "text/csv")
-    with c_cl:
-        if st.button("🗑️ Clear Data"):
-            st.session_state.db = pd.DataFrame(columns=columns)
-            st.rerun()
+    # Export Buttons
+    csv = display_df.to_csv(index=False).encode('utf-8-sig')
+    st.download_button("📥 Download Excel Report", csv, "seg_official_report.csv", "text/csv")
+    
+    if st.button("🗑️ Clear All Data"):
+        st.session_state.db = pd.DataFrame(columns=columns)
+        st.rerun()
 else:
-    st.info("💡 Please upload student names from Excel to start.")
+    st.info("💡 Please upload student names from Sidebar to start grading.")
 
 # --- ៧. FOOTER CREDITS ---
-st.divider()
-st.markdown("""
-    <div style='text-align: center; color: gray; padding: 10px;'>
-        <p>Developed by <b>CHAN Sokhoeurn, C2/DBA</b></p>
-        <p>© 2026 SEG Management System | Prek Leap Branch</p>
+st.markdown(f"""
+    <div class="footer-text">
+        <p>Developed with ❤️ by <b>CHAN Sokhoeurn, C2/DBA</b></p>
+        <p>© 2026 SEG School Management System | All Rights Reserved</p>
     </div>
     """, unsafe_allow_html=True)
