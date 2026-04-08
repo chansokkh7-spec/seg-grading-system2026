@@ -9,17 +9,20 @@ st.set_page_config(
     layout="wide"
 )
 
-# ២. កំណត់យក Logo ពី File ដែលអ្នកគ្រូបាន Upload ទៅ GitHub
-# ដោយសារអ្នកគ្រូដាក់ឈ្មោះថា logo.png ក្នុង GitHub ដូច្នេះយើងត្រូវដាក់ឈ្មោះឱ្យដូចគ្នា
+# ២. ឈ្មោះ File Logo ដែលមានក្នុង GitHub របស់អ្នកគ្រូ
 LOGO_FILE = "logo.png" 
 
-# ៣. CSS សម្រាប់ដេគ័រកម្មវិធី
+# ៣. CSS សម្រាប់ដេគ័រ និងរៀបចំអក្សរឱ្យមកចំកណ្តាល
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
     .stButton>button { 
         width: 100%; border-radius: 8px; height: 3em; 
         background-color: #003057; color: white; font-weight: bold; 
+    }
+    /* កំណត់ឱ្យ Title និង Subtitle មកចំកណ្តាល */
+    .centered-text {
+        text-align: center;
     }
     .footer-text { 
         text-align: center; color: #666; padding: 20px; 
@@ -57,7 +60,6 @@ if 'form_key' not in st.session_state: st.session_state.form_key = 0
 if 'selected_level' not in st.session_state: st.session_state.selected_level = "Level 1"
 
 # --- ៦. SIDEBAR ---
-# បង្ហាញ Logo នៅ Sidebar
 try:
     st.sidebar.image(LOGO_FILE, width=150)
 except:
@@ -107,17 +109,22 @@ if not st.session_state.db.empty:
             st.session_state.form_key += 1
             st.rerun()
 
-# --- ៧. MAIN PAGE ---
-col_logo, col_title = st.columns([1, 6])
-with col_logo:
+# --- ៧. MAIN PAGE (Logo & Title ចំកណ្តាល) ---
+# បង្កើត Column ចំនួន ៣ ដើម្បីដាក់រូបភាពនៅចំកណ្តាល
+left_co, cent_co, last_co = st.columns([1, 1, 1])
+with cent_co:
     try:
-        st.image(LOGO_FILE, width=100)
+        st.image(LOGO_FILE, width=150)
     except:
         st.write("🏫")
 
-with col_title:
-    st.title("SEG Student Management Dashboard")
-    st.write("Academic Year: 2026 | Branch: **Prek Leap**")
+# បង្ហាញចំណងជើងឱ្យចំកណ្តាល
+st.markdown("""
+    <div class="centered-text">
+        <h1>SEG Student Management Dashboard</h1>
+        <p>Academic Year: 2026 | Branch: <b>Prek Leap</b></p>
+    </div>
+    """, unsafe_allow_html=True)
 
 if not st.session_state.db.empty:
     st.divider()
