@@ -9,26 +9,44 @@ st.set_page_config(
     layout="wide"
 )
 
-# ២. ឈ្មោះ File Logo ដែលមានក្នុង GitHub របស់អ្នកគ្រូ
+# ២. ឈ្មោះ File Logo ដែលមានក្នុង GitHub
 LOGO_FILE = "logo.png" 
 
-# ៣. CSS សម្រាប់ដេគ័រ និងរៀបចំអក្សរឱ្យមកចំកណ្តាល
+# ៣. CSS សម្រាប់រៀបចំ Logo ឱ្យនៅចំកណ្តាល និងដេគ័រកម្មវិធី
 st.markdown("""
     <style>
+    /* ដាក់ Logo នៅ Sidebar ឱ្យចំកណ្តាល */
+    [data-testid="stSidebarNav"] {
+        background-image: url('logo.png');
+        background-repeat: no-repeat;
+        padding-top: 80px;
+        background-position: center 20px;
+    }
+    .st-emotion-cache-16399m3 {
+        display: flex;
+        justify-content: center;
+    }
+    
+    /* ស្ទាយទូទៅ */
     .main { background-color: #f8f9fa; }
     .stButton>button { 
         width: 100%; border-radius: 8px; height: 3em; 
         background-color: #003057; color: white; font-weight: bold; 
     }
-    /* កំណត់ឱ្យ Title និង Subtitle មកចំកណ្តាល */
-    .centered-text {
-        text-align: center;
-    }
+    
+    /* រៀបចំ Footer */
     .footer-text { 
         text-align: center; color: #666; padding: 20px; 
         font-size: 0.9em; border-top: 1px solid #eee; margin-top: 50px; 
     }
     footer {visibility: hidden;}
+    
+    /* ធ្វើឱ្យរូបភាពនៅទំព័រមុខចំកណ្តាល */
+    .center-img {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -60,15 +78,18 @@ if 'form_key' not in st.session_state: st.session_state.form_key = 0
 if 'selected_level' not in st.session_state: st.session_state.selected_level = "Level 1"
 
 # --- ៦. SIDEBAR ---
-try:
-    st.sidebar.image(LOGO_FILE, width=150)
-except:
-    st.sidebar.title("🏫 SEG SCHOOL")
+# បង្ហាញ Logo នៅចំកណ្តាល Sidebar
+col_side1, col_side2, col_side3 = st.sidebar.columns([1, 2, 1])
+with col_side2:
+    try:
+        st.image(LOGO_FILE, use_container_width=True)
+    except:
+        st.write("🏫")
 
-st.sidebar.title("SEG Data Manager")
+st.sidebar.markdown("<h2 style='text-align: center;'>SEG Manager</h2>", unsafe_allow_html=True)
 st.sidebar.divider()
 
-# Upload ឈ្មោះសិស្ស
+# Upload Section
 uploaded_file = st.sidebar.file_uploader("Upload Excel/CSV", type=['xlsx', 'csv'])
 if uploaded_file:
     try:
@@ -109,22 +130,19 @@ if not st.session_state.db.empty:
             st.session_state.form_key += 1
             st.rerun()
 
-# --- ៧. MAIN PAGE (Logo & Title ចំកណ្តាល) ---
-# បង្កើត Column ចំនួន ៣ ដើម្បីដាក់រូបភាពនៅចំកណ្តាល
-left_co, cent_co, last_co = st.columns([1, 1, 1])
-with cent_co:
+# --- ៧. MAIN PAGE ---
+# បង្ហាញ Logo នៅចំកណ្តាលទំព័រមុខ
+st.markdown('<div class="center-img">', unsafe_allow_html=True)
+col_m1, col_m2, col_m3 = st.columns([2, 1, 2])
+with col_m2:
     try:
-        st.image(LOGO_FILE, width=150)
+        st.image(LOGO_FILE, use_container_width=True)
     except:
         st.write("🏫")
+st.markdown('</div>', unsafe_allow_html=True)
 
-# បង្ហាញចំណងជើងឱ្យចំកណ្តាល
-st.markdown("""
-    <div class="centered-text">
-        <h1>SEG Student Management Dashboard</h1>
-        <p>Academic Year: 2026 | Branch: <b>Prek Leap</b></p>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>SEG Student Management Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Academic Year: 2026 | Branch: Prek Leap</p>", unsafe_allow_html=True)
 
 if not st.session_state.db.empty:
     st.divider()
@@ -144,7 +162,6 @@ if not st.session_state.db.empty:
         color = 'red' if val == 'F' else '#2e7d32' if 'A' in str(val) else '#ef6c00' if 'C' in str(val) else '#1565c0'
         return f'color: {color}; font-weight: bold'
 
-    st.write(f"Showing **{len(disp)}** students")
     st.dataframe(disp.style.map(style_grade, subset=['Result Grade']), use_container_width=True)
 
     # Export
