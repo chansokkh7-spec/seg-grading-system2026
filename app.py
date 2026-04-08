@@ -9,43 +9,27 @@ st.set_page_config(
     layout="wide"
 )
 
-# ២. ឈ្មោះ File Logo ដែលមានក្នុង GitHub
+# ២. ឈ្មោះ File Logo
 LOGO_FILE = "logo.png" 
 
-# ៣. CSS សម្រាប់រៀបចំ Logo ឱ្យនៅចំកណ្តាល និងដេគ័រកម្មវិធី
+# ៣. CSS សម្រាប់ដេគ័រកម្មវិធី
 st.markdown("""
     <style>
-    /* ដាក់ Logo នៅ Sidebar ឱ្យចំកណ្តាល */
-    [data-testid="stSidebarNav"] {
-        background-image: url('logo.png');
-        background-repeat: no-repeat;
-        padding-top: 80px;
-        background-position: center 20px;
-    }
-    .st-emotion-cache-16399m3 {
-        display: flex;
-        justify-content: center;
-    }
-    
-    /* ស្ទាយទូទៅ */
     .main { background-color: #f8f9fa; }
     .stButton>button { 
         width: 100%; border-radius: 8px; height: 3em; 
         background-color: #003057; color: white; font-weight: bold; 
     }
-    
-    /* រៀបចំ Footer */
     .footer-text { 
         text-align: center; color: #666; padding: 20px; 
         font-size: 0.9em; border-top: 1px solid #eee; margin-top: 50px; 
     }
     footer {visibility: hidden;}
-    
-    /* ធ្វើឱ្យរូបភាពនៅទំព័រមុខចំកណ្តាល */
-    .center-img {
+    .center-content {
         display: flex;
         justify-content: center;
-        margin-bottom: 20px;
+        flex-direction: column;
+        align-items: center;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -78,7 +62,6 @@ if 'form_key' not in st.session_state: st.session_state.form_key = 0
 if 'selected_level' not in st.session_state: st.session_state.selected_level = "Level 1"
 
 # --- ៦. SIDEBAR ---
-# បង្ហាញ Logo នៅចំកណ្តាល Sidebar
 col_side1, col_side2, col_side3 = st.sidebar.columns([1, 2, 1])
 with col_side2:
     try:
@@ -104,7 +87,7 @@ if uploaded_file:
                 st.rerun()
     except Exception as e: st.sidebar.error(f"Error: {e}")
 
-# បញ្ចូលពិន្ទុ
+# បញ្បញ្ចូលពិន្ទុ
 if not st.session_state.db.empty:
     levels = ["K1", "K2", "K3", "K4"] + [f"Level {i}" for i in range(1, 13)]
     st.session_state.selected_level = st.sidebar.selectbox("📚 Select Level", levels, index=levels.index(st.session_state.selected_level))
@@ -131,23 +114,42 @@ if not st.session_state.db.empty:
             st.rerun()
 
 # --- ៧. MAIN PAGE ---
-# បង្ហាញ Logo នៅចំកណ្តាលទំព័រមុខ
-st.markdown('<div class="center-img">', unsafe_allow_html=True)
-col_m1, col_m2, col_m3 = st.columns([2, 1, 2])
+# រៀបចំ Logo និង Title ឱ្យនៅចំកណ្តាល
+st.markdown('<div class="center-content">', unsafe_allow_html=True)
+col_m1, col_m2, col_m3 = st.columns([2.5, 1, 2.5])
 with col_m2:
     try:
         st.image(LOGO_FILE, use_container_width=True)
     except:
         st.write("🏫")
-st.markdown('</div>', unsafe_allow_html=True)
-
 st.markdown("<h1 style='text-align: center;'>SEG Student Management Dashboard</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>Academic Year: 2026 | Branch: Prek Leap</p>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 if not st.session_state.db.empty:
     st.divider()
-    
+
+    # --- ផ្នែក Pie Chart ថ្មី ---
+    active_db = st.session_state.db[st.session_state.db['Average (%)'] > 0]
+    if not active_db.empty:
+        st.subheader("📊 Class Grade Distribution")
+        grade_counts = active_db['Result Grade'].value_counts().reset_index()
+        grade_counts.columns = ['Grade', 'Count']
+        
+        # បង្កើត Pie Chart ដោយប្រើ Plotly
+        fig = px.pie(
+            grade_counts, 
+            values='Count', 
+            names='Grade', 
+            hole=0.4, # ធ្វើឱ្យចេញជារាង Donut ឱ្យមើលទៅទំនើប
+            color_discrete_sequence=px.colors.qualitative.Pastel,
+            category_orders={"Grade": ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F"]}
+        )
+        fig.update_traces(textposition='inside', textinfo='percent+label')
+        st.plotly_chart(fig, use_container_width=True)
+
     # Filter & Sort
+    st.subheader("🔍 Student List & Leaderboard")
     f1, f2 = st.columns(2)
     with f1:
         sel_grade = st.selectbox("Filter Grade", ["All Grades"] + sorted(st.session_state.db['Result Grade'].unique().tolist()))
