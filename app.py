@@ -1,45 +1,80 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
-st.set_page_config(page_title="SEG Grading System", page_icon="🏫")
+# កំណត់ទម្រង់ទំព័រឱ្យស្អាត
+st.set_page_config(page_title="SEG Grading System", page_icon="🏫", layout="wide")
 
-st.title("🏫 ប្រព័ន្ធគ្រប់គ្រងពិន្ទុសិស្ស - SEG")
+# បន្ថែមស្ទាយបន្តិចបន្តួច
+st.markdown("""
+    <style>
+    .main { background-color: #f4f7f9; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #003057; color: white; }
+    .stDataFrame { border-radius: 10px; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# បង្កើត Session State សម្រាប់រក្សាទិន្នន័យ
-if 'df' not in st.session_state:
-    st.session_state.df = pd.DataFrame(columns=['ID', 'Student Name', 'Level', 'Reading', 'Writing', 'Total'])
+# បង្កើតកន្លែងរក្សាទុកទិន្នន័យក្នុង Session
+if 'db' not in st.session_state:
+    st.session_state.db = pd.DataFrame(columns=['Student Name', 'Level', 'Grammar', 'Speaking', 'Total'])
 
-# ផ្នែកបញ្ចូលទិន្នន័យ
-with st.expander("➕ បញ្ចូលពិន្ទុសិស្សថ្មី", expanded=True):
-    col1, col2 = st.columns(2)
-    with col1:
-        name = st.text_input("ឈ្មោះសិស្ស")
-        level = st.selectbox("កម្រិតសិក្សា", ["GEP 7", "GEP 8", "GEP 9", "GEP 10", "GEP 11", "GEP 12"])
-    with col2:
-        r_score = st.number_input("Reading Score", 0, 100)
-        w_score = st.number_input("Writing Score", 0, 100)
+# --- SIDEBAR: បញ្ចូលទិន្នន័យ ---
+st.sidebar.image("https://img.icons8.com/fluency/96/school.png", width=80)
+st.sidebar.title("Grading Panel")
+with st.sidebar.form("grading_form", clear_on_submit=True):
+    name = st.text_input("👤 Student Full Name")
+    level = st.selectbox("📚 Level", ["GEP 7", "GEP 8", "GEP 9", "GEP 10", "GEP 11", "GEP 12"])
+    gram_score = st.number_input("✍️ Grammar Score", 0, 100)
+    speak_score = st.number_input("🗣️ Speaking Score", 0, 100)
     
-    if st.button("រក្សាទុកទិន្នន័យ"):
-        if name:
-            new_id = len(st.session_state.df) + 1
-            new_row = {'ID': new_id, 'Student Name': name, 'Level': level, 'Reading': r_score, 'Writing': w_score, 'Total': r_score + w_score}
-            st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new_row])], ignore_index=True)
-            st.success(f"បានបញ្ចូលពិន្ទុឱ្យសិស្ស {name} រួចរាល់!")
-        else:
-            st.error("សូមបំពេញឈ្មោះសិស្ស!")
+    submitted = st.form_submit_button("Save Score")
 
-# បង្ហាញតារាង
-st.subheader("📊 បញ្ជីពិន្ទុសិស្ស")
-st.dataframe(st.session_state.df, use_container_width=True)
+if submitted:
+    if name:
+        new_entry = pd.DataFrame({
+            'Student Name': [name],
+            'Level': [level],
+            'Grammar': [gram_score],
+            'Speaking': [speak_score],
+            'Total': [gram_score + speak_score]
+        })
+        st.session_state.db = pd.concat([st.session_state.db, new_entry], ignore_index=True)
+        st.sidebar.success(f"Saved: {name}")
+    else:
+        st.sidebar.error("Please enter name!")
 
-# ប៊ូតុងបញ្ជា
-col_dl, col_clr = st.columns([1, 1])
-with col_dl:
-    if not st.session_state.df.empty:
-        csv = st.session_state.df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button("📥 ទាញយកជា Excel (CSV)", csv, "student_scores.csv", "text/csv")
+# --- MAIN PAGE: បង្ហាញលទ្ធផល ---
+st.title("🏫 SEG Student Management Dashboard")
 
-with col_clr:
-    if st.button("🗑️ លុបទិន្នន័យទាំងអស់"):
-        st.session_state.df = pd.DataFrame(columns=['ID', 'Student Name', 'Level', 'Reading', 'Writing', 'Total'])
+# បង្ហាញជា Stats ខ្លីៗ
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Total Students", len(st.session_state.db))
+with col2:
+    avg_score = st.session_state.db['Total'].mean() if not st.session_state.db.empty else 0
+    st.metric("Average Total Score", f"{avg_score:.2f}")
+with col3:
+    st.metric("School Branch", "Prek Leap")
+
+# តារាងទិន្នន័យ
+st.subheader("📊 Class Grade Sheet")
+st.dataframe(st.session_state.db, use_container_width=True)
+
+# ក្រាហ្វិកវិភាគ (Analytics)
+if not st.session_state.db.empty:
+    st.subheader("📈 Performance Analysis")
+    fig = px.bar(st.session_state.db, x='Student Name', y='Total', color='Level', 
+                 title="Student Total Scores Comparison", barmode='group')
+    st.plotly_chart(fig, use_container_width=True)
+
+# ប៊ូតុងទាញយក និង លុប
+st.markdown("---")
+c1, c2 = st.columns(2)
+with c1:
+    if not st.session_state.db.empty:
+        csv = st.session_state.db.to_csv(index=False).encode('utf-8-sig')
+        st.download_button("📥 Export to Excel (CSV)", csv, "seg_grades.csv", "text/csv")
+with c2:
+    if st.button("🗑️ Reset All Records"):
+        st.session_state.db = pd.DataFrame(columns=['Student Name', 'Level', 'Grammar', 'Speaking', 'Total'])
         st.rerun()
